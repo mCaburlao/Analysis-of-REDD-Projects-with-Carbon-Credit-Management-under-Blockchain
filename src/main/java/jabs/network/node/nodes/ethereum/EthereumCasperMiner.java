@@ -13,5 +13,6 @@ public class EthereumCasperMiner extends EthereumMinerNode {
                                CasperFFGConfig casperFFGConfig) {
         super(simulator, network, nodeID, downloadBandwidth, uploadBandwidth, hashPower,
                 new CasperFFG<>(new LocalBlockTree<>(genesisBlock), casperFFGConfig));
+        this.consensusAlgorithm.setNode(this);
     }
 }

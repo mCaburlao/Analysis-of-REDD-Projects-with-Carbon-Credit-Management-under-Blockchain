@@ -12,5 +12,6 @@ public class EthereumCasperNode extends EthereumNode {
                               long uploadBandwidth, EthereumBlock genesisBlock, CasperFFGConfig casperFFGConfig) {
         super(simulator, network, nodeID, downloadBandwidth, uploadBandwidth,
                 new CasperFFG<>(new LocalBlockTree<>(genesisBlock), casperFFGConfig));
+        this.consensusAlgorithm.setNode(this);
     }
 }

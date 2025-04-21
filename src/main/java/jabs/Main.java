@@ -16,7 +16,7 @@ public class Main {
      * @throws IOException
      */
     public static void main(String[] args) throws IOException {
-        AbstractScenario scenario;
+        //AbstractScenario scenario;
 /*
         // Simulate one day in the life of Bitcoin network
         // Nakamoto protocol with block every 600 seconds
@@ -35,8 +35,23 @@ public class Main {
         // Simulate 1 hour in the life of Ethereum network
         // Ghost protocol with blocks every 14 seconds on average
         // Around 6000 nodes with 37 miners
-        scenario = new NormalEthereumNetworkScenario("One hour in the life of Ethereum", 1,
-                3600, 13.3);
+        for (int i = 0; i < 30; i++) {
+                AbstractScenario scenario;   
+                scenario = new NormalEthereumNetworkScenario("One hour in the life of Ethereum", i,
+                        3600, 13.3);
+                scenario.AddNewLogger(new BlockPropagationDelayLogger(
+                        Paths.get("output/ethereum-50-propagation-delay-log-"+i+".csv"), 0.5));
+                scenario.AddNewLogger(new BlockPropagationDelayLogger(
+                        Paths.get("output/ethereum-90-propagation-delay-log-"+i+".csv"), 0.9));
+                scenario.AddNewLogger(new FinalUncleBlocksLogger(
+                        Paths.get("output/ethereum-uncle-rate-"+i+".csv")));
+                scenario.run();
+        }
+*/
+        // Casper
+        AbstractScenario scenario;   
+        scenario = new CasperEthereumNetworkScenario("Half of one hour in the life of Ethereum", 1,
+                1800, 14, 1000, 40);
         scenario.AddNewLogger(new BlockPropagationDelayLogger(
                 Paths.get("output/ethereum-50-propagation-delay-log.csv"), 0.5));
         scenario.AddNewLogger(new BlockPropagationDelayLogger(
@@ -44,17 +59,18 @@ public class Main {
         scenario.AddNewLogger(new FinalUncleBlocksLogger(
                 Paths.get("output/ethereum-uncle-rate.csv")));
         scenario.run();
-
+/*
         // Simulate PBFT Lan network of 40 nodes for 1 hour
         scenario = new PBFTLANScenario("One hour of a PBFT lan Network", 1,
                 40, 3600);
         scenario.AddNewLogger(new PBFTCSVLogger(Paths.get("output/pbft-simulation-log.csv")));
         scenario.run();
-*/
+
         // Simulate Snow LAN network of 40 nodes for 1 hour
         scenario = new SnowLANScenario("One hour of a Snow lan Network", 1, 40,
                 3600);
         scenario.AddNewLogger(new SnowCSVLogger(Paths.get("output/snow-simulation-log.csv")));
         scenario.run();
+*/
     }
 }
