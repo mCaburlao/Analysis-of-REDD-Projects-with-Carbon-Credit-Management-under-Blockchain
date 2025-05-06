@@ -1,4 +1,4 @@
-package jabs.consensus.config;
+package jabs.consensus.algorithm;
 
 import jabs.consensus.algorithm.AbstractChainBasedConsensus;
 import jabs.consensus.blockchain.LocalBlockTree;
