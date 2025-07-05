@@ -9,6 +9,7 @@ import jabs.network.message.Packet;
 import jabs.network.message.VoteMessage;
 import jabs.network.node.nodes.Node;
 import org.apache.commons.math3.stat.descriptive.DescriptiveStatistics;
+import jabs.simulator.event.BlockFinalizationEvent;
 
 import java.util.*;
 
@@ -24,6 +25,7 @@ public class CasperFFG<B extends SingleParentBlock<B>, T extends Tx<T>> extends 
 
     private final Set<B> indirectlyFinalizedBlocks = new HashSet<>();
     private final Set<T> finalizedTxs = new HashSet<>();
+    private final Map<B, Long> blockTraffic = new HashMap<>();
 
     private final int checkpointSpace;
     private final int numOfStakeholders;
@@ -42,6 +44,8 @@ public class CasperFFG<B extends SingleParentBlock<B>, T extends Tx<T>> extends 
         this.justifiedBlocks.add(localBlockTree.getGenesisBlock());
         this.finalizedBlocks.add(localBlockTree.getGenesisBlock());
         this.indirectlyFinalizedBlocks.add(localBlockTree.getGenesisBlock());
+        // System.out.println("[CasperFFG] Initialized with checkpointSpace=" + checkpointSpace +
+        //         ", numOfStakeholders=" + numOfStakeholders);
     }
 
     /**
@@ -51,19 +55,35 @@ public class CasperFFG<B extends SingleParentBlock<B>, T extends Tx<T>> extends 
         this.blockFinalizationTimes = blockFinalizationTimes;
     }
 
-    @Override
+    // Add this method to allow traffic tracking from network code
+    public void addBlockTraffic(B block, long bytes) {
+        blockTraffic.put(block, blockTraffic.getOrDefault(block, 0L) + bytes);
+    }
+
     public void newIncomingVote(Vote vote) {
         if (vote instanceof CasperFFGVote) {
             CasperFFGVote<B> casperFFGVote = (CasperFFGVote<B>) vote;
             CasperFFGLink<B> casperFFGLink = casperFFGVote.getLink();
+            //  System.out.println("[CasperFFG] Received vote from node " + casperFFGVote.getVoter().nodeID +
+            //         " for link: " + casperFFGLink.getToBeFinalized().getHeight() + "→" +
+            //         casperFFGLink.getToBeJustified().getHeight());
             if (localBlockTree.areBlocksConnected(casperFFGLink.getToBeJustified(), casperFFGLink.getToBeFinalized())) {
                 if (!votes.containsKey(casperFFGLink)) { // first vote for the link
                     votes.put(casperFFGLink, new HashMap<>());
                 }
                 votes.get(casperFFGLink).put(casperFFGVote.getVoter(), casperFFGVote);
+                // System.out.println("[CasperFFG] Link votes for " +
+                //         casperFFGLink.getToBeFinalized().getHeight() + "→" +
+                //         casperFFGLink.getToBeJustified().getHeight() + ": " +
+                //         votes.get(casperFFGLink).size() + " / " +
+                //         (((numOfStakeholders / 3) * 2) + 1));
                 if (votes.get(casperFFGLink).size() > (((numOfStakeholders / 3) * 2) + 1)) {
                     justifiedBlocks.add(casperFFGLink.getToBeJustified());
+                    // System.out.println("[CasperFFG] Block justified: " +
+                    //         casperFFGLink.getToBeJustified().getHeight());
                     if (!finalizedBlocks.contains(casperFFGLink.getToBeFinalized())) {
+                        // System.out.println("[CasperFFG] Finalizing block: " +
+                        //         casperFFGLink.getToBeFinalized().getHeight());
                         updateFinalizedBlocks(casperFFGLink.getToBeFinalized());
                         finalizedBlocks.add(casperFFGLink.getToBeFinalized());
                         if (this.originOfGhost.getHeight() < casperFFGLink.getToBeFinalized().getHeight()) {
@@ -71,7 +91,13 @@ public class CasperFFG<B extends SingleParentBlock<B>, T extends Tx<T>> extends 
                         }
                     }
                 }
+            } else {
+                // System.out.println("[CasperFFG] Blocks not connected for link: " +
+                //         casperFFGLink.getToBeFinalized().getHeight() + "→" +
+                //         casperFFGLink.getToBeJustified().getHeight());
             }
+        } else {
+            // System.out.println("[CasperFFG] Received non-CasperFFG vote: " + vote);
         }
     }
 
@@ -80,6 +106,19 @@ public class CasperFFG<B extends SingleParentBlock<B>, T extends Tx<T>> extends 
             indirectlyFinalizedBlocks.add(newlyFinalizedBlock);
             if (blockFinalizationTimes != null) {
                 blockFinalizationTimes.addValue(peerBlockchainNode.getSimulator().getSimulationTime() - newlyFinalizedBlock.getCreationTime());
+            }
+            // Emit BlockFinalizationEvent for this block
+            if (this.peerBlockchainNode != null && this.peerBlockchainNode.getSimulator() != null) {
+                long traffic = blockTraffic.getOrDefault(newlyFinalizedBlock, 0L);
+                this.peerBlockchainNode.getSimulator().putEvent(
+                    new BlockFinalizationEvent(
+                        this.peerBlockchainNode.getSimulator().getSimulationTime(),
+                        this.peerBlockchainNode,
+                        newlyFinalizedBlock,
+                        traffic
+                    ),
+                    0
+                );
             }
         }
 
@@ -94,12 +133,26 @@ public class CasperFFG<B extends SingleParentBlock<B>, T extends Tx<T>> extends 
                 if (block instanceof BlockWithTx) {
                     finalizedTxs.addAll(((BlockWithTx<T>) block).getTxs());
                 }
+                // Emit BlockFinalizationEvent for ancestor blocks
+                if (this.peerBlockchainNode != null && this.peerBlockchainNode.getSimulator() != null) {
+                    long traffic = blockTraffic.getOrDefault(block, 0L);
+                    this.peerBlockchainNode.getSimulator().putEvent(
+                        new BlockFinalizationEvent(
+                            this.peerBlockchainNode.getSimulator().getSimulationTime(),
+                            this.peerBlockchainNode,
+                            block,
+                            traffic
+                        ),
+                        0
+                    );
+                }
             }
         }
     }
 
     @Override
     protected void updateChain() {
+        // System.out.println("[CasperFFG] Updating chain...");
         this.confirmedBlocks = this.localBlockTree.getAllAncestors(this.currentMainChainHead);
         if ((currentMainChainHead.getHeight() - checkpointSpace) > latestCheckpoint) {
             latestCheckpoint = currentMainChainHead.getHeight() - (currentMainChainHead.getHeight() % checkpointSpace);
@@ -129,6 +182,8 @@ public class CasperFFG<B extends SingleParentBlock<B>, T extends Tx<T>> extends 
             CasperFFGVote<B> casperFFGVote = new CasperFFGVote<>(this.peerBlockchainNode, casperFFGLink);
             VoteMessage voteMessage = new VoteMessage(casperFFGVote);
             Packet packet = new Packet(this.peerBlockchainNode, this.peerBlockchainNode, voteMessage);
+            // System.out.println("[CasperFFG] Broadcasting vote for link: " +
+            //         toBeFinalizedBlock.getHeight() + "→" + toBeJustifiedBlock.getHeight());
             this.peerBlockchainNode.processIncomingPacket(packet);
         }
     }

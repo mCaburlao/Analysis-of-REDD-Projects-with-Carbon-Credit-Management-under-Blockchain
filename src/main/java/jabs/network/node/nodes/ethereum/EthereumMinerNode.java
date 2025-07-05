@@ -37,6 +37,7 @@ public class EthereumMinerNode extends EthereumNode implements MinerNode {
                              AbstractChainBasedConsensus<EthereumBlock, EthereumTx> consensusAlgorithm) {
         super(simulator, network, nodeID, downloadBandwidth, uploadBandwidth, consensusAlgorithm);
         this.hashPower = hashPower;
+        this.consensusAlgorithm.setNode(this);
     }
 
     public void generateNewBlock() {

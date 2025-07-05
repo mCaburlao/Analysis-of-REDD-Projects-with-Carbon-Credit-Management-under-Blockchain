@@ -26,7 +26,7 @@ public class GhostProtocol<B extends SingleParentBlock<B>, T extends Tx<T>>
     public void newIncomingBlock(B block) {
         totalWeights.put(block, DEFAULT_GHOST_WEIGHT);
         if (this.localBlockTree.getLocalBlock(block).isConnectedToGenesis) {
-            for (B ancestor:this.localBlockTree.getAllAncestors(block)) {
+            for (B ancestor : this.localBlockTree.getAllAncestors(block)) {
                 if (!totalWeights.containsKey(ancestor)) {
                     totalWeights.put(ancestor, DEFAULT_GHOST_WEIGHT);
                 }
@@ -44,15 +44,18 @@ public class GhostProtocol<B extends SingleParentBlock<B>, T extends Tx<T>>
         B block = this.originOfGhost;
 
         while (true) {
+            if (totalWeights == null || totalWeights.get(block) == null) {
+                return block;
+            }
             if (totalWeights.get(block) == 1) {
                 return block;
             }
 
             int maxWeight = 0;
             HashSet<B> children = this.localBlockTree.getChildren(block);
-            for (B child: children) {
+            for (B child : children) {
                 if (localBlockTree.getLocalBlock(child).isConnectedToGenesis) {
-                    if (totalWeights.get(child) > maxWeight) {
+                    if (totalWeights != null && totalWeights.get(child) != null && totalWeights.get(child) > maxWeight) {
                         maxWeight = totalWeights.get(child);
                         block = child;
                     }

@@ -34,6 +34,7 @@ public class EthereumNode extends PeerBlockchainNode<EthereumBlock, EthereumTx> 
         super(simulator, network, nodeID, downloadBandwidth, uploadBandwidth,
                 new EthereumGethP2P(),
                 consensusAlgorithm);
+        this.consensusAlgorithm.setNode(this);
     }
 
     @Override
@@ -49,6 +50,7 @@ public class EthereumNode extends PeerBlockchainNode<EthereumBlock, EthereumTx> 
 
     @Override
     protected void processNewVote(Vote vote) {
+        // System.out.println("[EthereumNode] Broadcasting vote " + vote + " to neighbors " + this.p2pConnections.getNeighbors());
         if (this.consensusAlgorithm instanceof VotingBasedConsensus) {
             ((VotingBasedConsensus) this.consensusAlgorithm).newIncomingVote(vote);
             for (Node neighbor : this.p2pConnections.getNeighbors()) {

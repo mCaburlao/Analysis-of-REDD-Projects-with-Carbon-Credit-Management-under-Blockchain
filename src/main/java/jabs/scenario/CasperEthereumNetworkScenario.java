@@ -15,6 +15,7 @@ public class CasperEthereumNetworkScenario extends AbstractScenario {
     private final double simulationStopTime;
     private final double averageBlockInterval;
     private final int checkpointSpace;
+    private final int numOfMiners;
     private final int numOfStakeholders;
 
     /**
@@ -25,11 +26,12 @@ public class CasperEthereumNetworkScenario extends AbstractScenario {
      */
     public CasperEthereumNetworkScenario(String name, long seed,
                                          double simulationStopTime, double averageBlockInterval, 
-                                         int checkpointSpace, int numOfStakeholders) {
+                                         int checkpointSpace, int numOfMiners, int numOfStakeholders) {
         super(name, seed);
         this.simulationStopTime = simulationStopTime;
         this.averageBlockInterval = averageBlockInterval;
         this.checkpointSpace = checkpointSpace;
+        this.numOfMiners = numOfMiners;
         this.numOfStakeholders = numOfStakeholders;
     }
 
@@ -38,7 +40,7 @@ public class CasperEthereumNetworkScenario extends AbstractScenario {
         CasperFFGGlobalBlockchainNetwork<?> ethereumNetwork = new CasperFFGGlobalBlockchainNetwork<>(randomnessEngine, this.checkpointSpace,
                 new EthereumProofOfWorkGlobalNetworkStats6Regions(randomnessEngine));
         this.network = ethereumNetwork;
-        ethereumNetwork.populateNetwork(simulator,
+        ethereumNetwork.populateNetwork(simulator, this.numOfMiners, this.numOfStakeholders,
                 new CasperFFGConfig(EthereumBlock.generateGenesisBlock(ETHEREUM_DIFFICULTY_2022),
                         this.averageBlockInterval, this.checkpointSpace, this.numOfStakeholders));
     }

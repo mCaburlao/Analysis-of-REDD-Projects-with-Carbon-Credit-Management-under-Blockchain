@@ -1,6 +1,7 @@
 package jabs.consensus.algorithm;
 
 import jabs.consensus.algorithm.AbstractChainBasedConsensus;
+import jabs.consensus.config.NakamotoConsensusConfig;
 import jabs.consensus.blockchain.LocalBlockTree;
 import jabs.ledgerdata.SingleParentBlock;
 import jabs.ledgerdata.Tx;

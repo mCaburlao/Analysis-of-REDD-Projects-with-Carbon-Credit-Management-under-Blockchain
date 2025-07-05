@@ -1,6 +1,8 @@
 package jabs.network.node.nodes;
 
 import jabs.consensus.algorithm.AbstractChainBasedConsensus;
+import jabs.consensus.algorithm.Parlia;
+import jabs.consensus.algorithm.CasperFFG;
 import jabs.consensus.blockchain.LocalBlockTree;
 import jabs.ledgerdata.*;
 import jabs.network.message.*;
@@ -34,9 +36,18 @@ public abstract class PeerBlockchainNode<B extends SingleParentBlock<B>, T exten
     public void processIncomingPacket(Packet packet) {
         Message message = packet.getMessage();
         if (message instanceof DataMessage) {
+            // System.out.println("[PeerBlockchainNode] Received DataMessage: " + message);
             Data data = ((DataMessage) message).getData();
             if (data instanceof Block) {
                 B block = (B) data;
+                // Track traffic for this block (Parlia)
+                if (this.consensusAlgorithm instanceof Parlia) {
+                    ((Parlia<B, T>) this.consensusAlgorithm).addBlockTraffic(block, packet.getSize());
+                }
+                // Track traffic for this block (CasperFFG)
+                if (this.consensusAlgorithm instanceof CasperFFG) {
+                    ((CasperFFG<B, T>) this.consensusAlgorithm).addBlockTraffic(block, packet.getSize());
+                }
                 if (!localBlockTree.contains(block)){
                     localBlockTree.add(block);
                     alreadySeenBlocks.put(block.getHash(), block);
@@ -62,6 +73,7 @@ public abstract class PeerBlockchainNode<B extends SingleParentBlock<B>, T exten
                 }
             }
         } else if (message instanceof InvMessage) {
+            // System.out.println("[PeerBlockchainNode] Received InvMessage: " + message);
             Hash hash = ((InvMessage) message).getHash();
             if (hash.getData() instanceof Block){
                 if (!alreadySeenTxs.containsKey(hash)) {
@@ -83,6 +95,7 @@ public abstract class PeerBlockchainNode<B extends SingleParentBlock<B>, T exten
                 }
             }
         } else if (message instanceof RequestDataMessage) {
+            // System.out.println("[PeerBlockchainNode] Received RequestDataMessage: " + message);
             Hash hash = ((RequestDataMessage) message).getHash();
             if (hash.getData() instanceof Block) {
                 if (alreadySeenBlocks.containsKey(hash)) {
@@ -108,12 +121,14 @@ public abstract class PeerBlockchainNode<B extends SingleParentBlock<B>, T exten
                 }
             }
         } else if (message instanceof VoteMessage) {
+            // System.out.println("[PeerBlockchainNode] Received VoteMessage: " + message);
             Vote vote = ((VoteMessage) message).getVote();
             if (!alreadySeenVotes.contains(vote)) {
                 alreadySeenVotes.add(vote);
                 this.processNewVote(vote);
             }
         }else if (message instanceof QueryMessage) {
+            // System.out.println("[PeerBlockchainNode] Received QueryMessage: " + message);
             Query query = ((QueryMessage) message).getQuery();
             if (!alreadySeenQueries.contains(query)) {
                 alreadySeenQueries.add(query);
